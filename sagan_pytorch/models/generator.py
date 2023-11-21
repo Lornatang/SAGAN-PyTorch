@@ -24,6 +24,8 @@ __all__ = [
 class Generator(nn.Module):
     def __init__(self, noise_dim: int = 100, num_classes: int = 10) -> None:
         super().__init__()
+        self.noise_dim = noise_dim
+        self.num_classes = num_classes
 
         self.linear = spectral_norm(nn.Linear(noise_dim, 4 * 4 * 512))
         self.trunk = nn.ModuleList([
