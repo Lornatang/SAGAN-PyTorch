@@ -45,7 +45,7 @@ TRAIN:
       BETA1: 0.0
       BETA2: 0.9
 
-  N_CRITIC: 1  # Update D every n_critic iterations
+  N_CRITIC: 5  # Update D every n_critic iterations
 
   PRINT_FREQ: 100
   VISUAL_FREQ: 1000
