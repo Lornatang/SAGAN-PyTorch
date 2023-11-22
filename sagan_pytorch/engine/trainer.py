@@ -257,7 +257,7 @@ class Trainer:
             "scheduler": None
         }
 
-        if (self.config["TRAIN"]["SAVE_EVERY_EPOCH"] + 1) % (epoch + 1) == 0:
+        if self.config["TRAIN"]["SAVE_EVERY_EPOCH"] % (epoch + 1) == 0:
             g_weights_path = os.path.join(self.save_weights_dir, f"g_epoch_{epoch:04d}.pth.tar")
             d_weights_path = os.path.join(self.save_weights_dir, f"d_epoch_{epoch:04d}.pth.tar")
             torch.save(g_state_dict, g_weights_path)
