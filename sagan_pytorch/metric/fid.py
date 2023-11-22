@@ -118,7 +118,7 @@ class FID:
             # Extract real features
             real_feature = []
             with torch.no_grad():
-                for imgs in tqdm(dataloader, desc='Extract features of real images'):
+                for imgs in tqdm(dataloader, desc="Extract features of real images"):
                     imgs = imgs.to(self.device)
                     features = self.fid_model(imgs).detach().cpu().numpy()
                     real_feature.append(features)
@@ -170,7 +170,7 @@ class FID:
             fid = mean_norm + trace
 
             if self.verbose:
-                print(f"FID score of class {id} ({cls_name}): {fid}", fid)
+                print(f"FID score of class {id} ({cls_name}): {fid}")
             fids.append(fid)
 
         return sum(fids) / len(fids)

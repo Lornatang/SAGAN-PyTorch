@@ -28,10 +28,8 @@ from torchvision import transforms
 from torchvision.datasets import ImageFolder
 from torchvision.utils import save_image
 
-from sagan_pytorch.data.prefetcher import CPUPrefetcher, CUDAPrefetcher
-from sagan_pytorch.models.discriminator import discriminator
-from sagan_pytorch.models.generator import generator
-from sagan_pytorch.models.utils import load_resume_state_dict
+from sagan_pytorch.data import CPUPrefetcher, CUDAPrefetcher
+from sagan_pytorch.models import generator, discriminator, load_resume_state_dict
 from sagan_pytorch.utils import AverageMeter, ProgressMeter
 
 
@@ -60,8 +58,10 @@ class Trainer:
         self.batches = len(self.dataloader)
 
         # For training visualization, select a fixed batch of data
-        self.fixed_noise = torch.randn(self.config["MODEL"]["G"]["NUM_CLASSES"] * 5, self.config["MODEL"]["G"]["NOISE_DIM"], device=self.device)
-        self.fixed_class = torch.arange(8, device=self.device).long().repeat(5)
+        self.fixed_size = 8
+        self.fixed_repeat = 5
+        self.fixed_noise = torch.randn(self.fixed_size * self.fixed_repeat, self.config["MODEL"]["G"]["NOISE_DIM"], device=self.device)
+        self.fixed_class = torch.arange(self.fixed_size, device=self.device).long().repeat(self.fixed_repeat)
 
         self.load_checkpoint()
 
@@ -238,7 +238,7 @@ class Trainer:
         with torch.no_grad():
             sample_imgs = self.g_model(self.fixed_noise, self.fixed_class)
             save_sample_path = os.path.join(self.save_visuals_dir, f"iter-{iters:06d}.jpg")
-            save_image(sample_imgs.cpu().data, save_sample_path, nrow=1, padding=0, normalize=True)
+            save_image(sample_imgs.cpu().data, save_sample_path, nrow=self.fixed_size, padding=0, normalize=True)
 
     def save_checkpoint(self, epoch: int) -> None:
         # Automatically save models weights
