@@ -60,7 +60,7 @@ class BasicConvBlock(nn.Module):
             out = self.norm1(out, cls_idx)
         out = self.relu(out)
         if self.upsample:
-            out = F_torch.upsample(out, scale_factor=2)
+            out = F_torch.interpolate(out, scale_factor=2)
         out = self.conv1(out)
 
         if self.bn:
@@ -74,7 +74,7 @@ class BasicConvBlock(nn.Module):
         if self.skip_proj:
             skip = x
             if self.upsample:
-                skip = F_torch.upsample(skip, scale_factor=2)
+                skip = F_torch.interpolate(skip, scale_factor=2)
             skip = self.conv_skip(skip)
             if self.downsample:
                 skip = F_torch.avg_pool2d(skip, 2)

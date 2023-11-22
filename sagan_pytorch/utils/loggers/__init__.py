@@ -11,10 +11,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from .img_data import *
-from .prefetcher import *
+from .average_meter import *
+from .progress_meter import *
+from .summary import *
 
 __all__ = [
-    "ImageData",
-    "PrefetchDataLoader", "PrefetchGenerator", "CPUPrefetcher", "CUDAPrefetcher",
+    "AverageMeter",
+    "ProgressMeter",
+    "Summary",
 ]

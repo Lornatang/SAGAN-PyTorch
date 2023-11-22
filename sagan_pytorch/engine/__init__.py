@@ -1,4 +1,4 @@
-# Copyright 2023 AlphaBetter Corporation. All Rights Reserved.
+# Copyright 2023 Lornatang Authors. All Rights Reserved.
 # Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
 #   You may obtain a copy of the License at
@@ -11,10 +11,3 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from .img_data import *
-from .prefetcher import *
-
-__all__ = [
-    "ImageData",
-    "PrefetchDataLoader", "PrefetchGenerator", "CPUPrefetcher", "CUDAPrefetcher",
-]

@@ -11,10 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-from .img_data import *
-from .prefetcher import *
+"""
+Print the mean, total value, or average according to different attributes
+"""
+from enum import Enum
 
 __all__ = [
-    "ImageData",
-    "PrefetchDataLoader", "PrefetchGenerator", "CPUPrefetcher", "CUDAPrefetcher",
+    "Summary",
 ]
+
+class Summary(Enum):
+    NONE = 0
+    AVERAGE = 1
+    SUM = 2
+    COUNT = 3

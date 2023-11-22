@@ -1,0 +1,60 @@
+# experiment name
+EXP_NAME: imagenet_128x128
+# random number seed
+SEED: 42
+# run device model
+DEVICE_ID: 0
+
+# Model define
+MODEL:
+  G:
+    NOISE_DIM: 128
+    NUM_CLASSES: 1000
+    COMPILED: False
+  D:
+    NUM_CLASSES: 1000
+    COMPILED: False
+
+DATASETS:
+  IMGS_DIR: "./data/imagenet"
+  IMG_SIZE: 128
+
+TRAIN:
+  # Model file address, used for pre-training and recovery training
+  CHECKPOINT:
+    G:
+      PRETRAINED_MODEL_WEIGHTS_PATH: ""
+      RESUME_MODEL_WEIGHTS_PATH: ""
+    D:
+      PRETRAINED_MODEL_WEIGHTS_PATH: ""
+      RESUME_MODEL_WEIGHTS_PATH: ""
+
+  # training hyperparameters
+  HYP:
+    IMGS_PER_BATCH: 64
+
+    EPOCHS: 1280  # For imagenet_1k val dataset, 50000 images / 64 images per batch ~= 781, 1,000,000 iters / 781 batch for epoch = 1280 epochs
+
+  OPTIM:
+    G:
+      LR: 0.0001
+      BETA1: 0.0
+      BETA2: 0.9
+    D:
+      LR: 0.0004
+      BETA1: 0.0
+      BETA2: 0.9
+
+  N_CRITIC: 1  # Update D every n_critic iterations
+
+  PRINT_FREQ: 100
+  VISUAL_FREQ: 1000
+  SAVE_EVERY_EPOCH: True
+
+TEST:
+  # Model file address, used for pre-training and recovery training
+  CHECKPOINT:
+    MODEL_WEIGHTS_PATH: "./results/pretrained_models/g-imagenet_128x128.pth.tar"
+
+  HYP:
+    IMGS_PER_BATCH: 1

@@ -22,7 +22,7 @@ __all__ = [
 
 
 class Generator(nn.Module):
-    def __init__(self, noise_dim: int = 100, num_classes: int = 10) -> None:
+    def __init__(self, noise_dim: int = 128, num_classes: int = 1000) -> None:
         super().__init__()
         self.noise_dim = noise_dim
         self.num_classes = num_classes
@@ -61,5 +61,5 @@ class Generator(nn.Module):
         return x
 
 
-def generator(num_classes: int = 10, **kwargs) -> Generator:
+def generator(num_classes: int = 1000, **kwargs) -> Generator:
     return Generator(num_classes=num_classes, **kwargs)
