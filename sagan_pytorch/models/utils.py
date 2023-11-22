@@ -19,9 +19,10 @@ from pathlib import Path
 import thop
 import torch
 from torch import nn, optim, Tensor
+from torch.nn.utils import spectral_norm
 
 __all__ = [
-    "load_state_dict", "load_resume_state_dict", "profile"
+    "load_state_dict", "load_resume_state_dict", "profile", "spectral_init",
 ]
 
 
@@ -148,3 +149,11 @@ def profile(model: nn.Module, inputs: Tensor, device: str | torch.device = "cpu"
               f"Params: {parameters:.3f} M")
 
     return flops, memory, parameters
+
+
+def spectral_init(module, gain: int = 1) -> nn.Module:
+    torch.nn.init.xavier_uniform_(module.weight, gain)
+    if module.bias is not None:
+        module.bias.data.zero_()
+
+    return spectral_norm(module)

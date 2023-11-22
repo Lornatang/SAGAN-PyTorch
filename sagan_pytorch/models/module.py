@@ -15,6 +15,7 @@ import torch
 from torch import nn, Tensor
 from torch.nn import functional as F_torch
 from torch.nn.utils import spectral_norm
+from .utils import spectral_init
 
 __all__ = [
     "BasicConvBlock", "ConditionalNorm", "SelfAttention",
@@ -26,46 +27,52 @@ class BasicConvBlock(nn.Module):
             self,
             in_channels: int,
             out_channels: int,
-            kernel_size=3,
-            padding=1,
-            stride=1,
-            num_classes=None,
-            bn=True,
-            upsample=True,
-            downsample=False,
+            kernel_size: int = 3,
+            padding: int = 1,
+            stride: int = 1,
+            bn: bool = True,
+            act: str = "leaky_relu",
+            upsample: bool = True,
+            downsample: bool = False,
+            num_classes: int = None,
     ) -> None:
         super().__init__()
         self.bn = bn
         self.upsample = upsample
         self.downsample = downsample
 
-        self.conv1 = spectral_norm(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False if bn else True))
-        self.conv2 = spectral_norm(nn.Conv2d(out_channels, out_channels, kernel_size, stride, padding, bias=False if bn else True))
+        self.conv1 = spectral_init(nn.Conv2d(in_channels, out_channels, kernel_size, stride, padding, bias=False if bn else True))
+        self.conv2 = spectral_init(nn.Conv2d(out_channels, out_channels, kernel_size, stride, padding, bias=False if bn else True))
 
         self.skip_proj = False
         if in_channels != out_channels or upsample or downsample:
-            self.conv_skip = spectral_norm(nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=False))
+            self.conv_skip = spectral_init(nn.Conv2d(in_channels, out_channels, 1, 1, 0, bias=False))
             self.skip_proj = True
 
         if bn:
             self.norm1 = ConditionalNorm(in_channels, num_classes)
             self.norm2 = ConditionalNorm(out_channels, num_classes)
 
-        self.relu = nn.ReLU(True)
+        if act == "relu":
+            self.act = nn.ReLU(True)
+        elif act == "leaky_relu":
+            self.act = nn.LeakyReLU(0.2, True)
+        else:
+            raise NotImplementedError(f"Unsupported activation function: {act}")
 
     def forward(self, x: Tensor, cls_idx: int = None) -> Tensor:
         out = x
 
         if self.bn:
             out = self.norm1(out, cls_idx)
-        out = self.relu(out)
+        out = self.act(out)
         if self.upsample:
             out = F_torch.interpolate(out, scale_factor=2)
         out = self.conv1(out)
 
         if self.bn:
             out = self.norm2(out, cls_idx)
-        out = self.relu(out)
+        out = self.act(out)
         out = self.conv2(out)
 
         if self.downsample:
@@ -109,9 +116,9 @@ class SelfAttention(nn.Module):
     def __init__(self, channels: int) -> None:
         super().__init__()
 
-        self.query = spectral_norm(nn.Conv1d(channels, channels // 8, 1, bias=False))
-        self.key = spectral_norm(nn.Conv1d(channels, channels // 8, 1, bias=False))
-        self.value = spectral_norm(nn.Conv1d(channels, channels, 1, bias=False))
+        self.query = spectral_init(nn.Conv1d(channels, channels // 8, 1, bias=False))
+        self.key = spectral_init(nn.Conv1d(channels, channels // 8, 1, bias=False))
+        self.value = spectral_init(nn.Conv1d(channels, channels, 1, bias=False))
 
         self.gamma = nn.Parameter(torch.tensor(0.0))
 

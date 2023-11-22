@@ -12,9 +12,9 @@
 # limitations under the License.
 # ==============================================================================
 from torch import nn, Tensor
-from torch.nn.utils import spectral_norm
 
 from .module import BasicConvBlock, SelfAttention
+from .utils import spectral_init
 
 __all__ = [
     "Generator", "generator",
@@ -27,7 +27,7 @@ class Generator(nn.Module):
         self.noise_dim = noise_dim
         self.num_classes = num_classes
 
-        self.linear = spectral_norm(nn.Linear(noise_dim, 4 * 4 * 512))
+        self.linear = spectral_init(nn.Linear(noise_dim, 4 * 4 * 512))
         self.trunk = nn.ModuleList([
             BasicConvBlock(512, 512, num_classes=num_classes),
             BasicConvBlock(512, 512, num_classes=num_classes),
@@ -41,7 +41,7 @@ class Generator(nn.Module):
         self.relu = nn.ReLU(True)
         self.tanh = nn.Tanh()
 
-        self.colorize = spectral_norm(nn.Conv2d(64, 3, 3, 1, 1, bias=False))
+        self.colorize = spectral_init(nn.Conv2d(64, 3, 3, 1, 1, bias=False))
 
     def forward(self, x: Tensor, cls_idx: Tensor) -> Tensor:
         x = self.linear(x)

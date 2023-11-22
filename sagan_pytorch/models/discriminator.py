@@ -15,6 +15,7 @@ from torch import nn, Tensor
 from torch.nn.utils import spectral_norm
 
 from .module import BasicConvBlock, SelfAttention
+from .utils import spectral_init
 
 __all__ = [
     "Discriminator", "discriminator",
@@ -25,11 +26,11 @@ class Discriminator(nn.Module):
     def __init__(self, num_classes: int = 10, in_channels: int = 3) -> None:
         super().__init__()
 
-        self.pre_conv = nn.Sequential(spectral_norm(nn.Conv2d(in_channels, 64, 3, 1, 1)),
+        self.pre_conv = nn.Sequential(spectral_init(nn.Conv2d(in_channels, 64, 3, 1, 1)),
                                       nn.ReLU(True),
-                                      spectral_norm(nn.Conv2d(64, 64, 3, 1, 1)),
+                                      spectral_init(nn.Conv2d(64, 64, 3, 1, 1)),
                                       nn.AvgPool2d(2))
-        self.pre_skip = spectral_norm(nn.Conv2d(in_channels, 64, 1))
+        self.pre_skip = spectral_init(nn.Conv2d(in_channels, 64, 1))
 
         self.trunk = nn.Sequential(BasicConvBlock(64, 128, bn=False, upsample=False, downsample=True),
                                    BasicConvBlock(128, 256, bn=False, upsample=False, downsample=False),
@@ -38,7 +39,7 @@ class Discriminator(nn.Module):
                                    BasicConvBlock(512, 512, bn=False, upsample=False, downsample=True),
                                    BasicConvBlock(512, 512, bn=False, upsample=False, downsample=True))
 
-        self.linear = spectral_norm(nn.Linear(512, 1))
+        self.linear = spectral_init(nn.Linear(512, 1))
 
         self.embed = spectral_norm(nn.Embedding(num_classes, 512))
         self.embed.weight.data.uniform_(-0.1, 0.1)

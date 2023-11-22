@@ -22,5 +22,5 @@ __all__ = [
     "Generator", "generator",
     "GradientPenaltyLoss",
     "BasicConvBlock", "ConditionalNorm", "SelfAttention",
-    "load_state_dict", "load_resume_state_dict", "profilel",
+    "load_state_dict", "load_resume_state_dict", "profile", "spectral_init",
 ]
