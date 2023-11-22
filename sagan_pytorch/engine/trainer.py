@@ -237,13 +237,11 @@ class Trainer:
     def visual_on_iters(self, iters: int):
         with torch.no_grad():
             sample_imgs = self.g_model(self.fixed_noise, self.fixed_class)
-            save_sample_path = os.path.join(self.save_visuals_dir, f"iter-{iters:06d}.jpg")
+            save_sample_path = os.path.join(self.save_visuals_dir, f"iter-{iters:08d}.jpg")
             save_image(sample_imgs.cpu().data, save_sample_path, nrow=self.fixed_size, padding=0, normalize=True)
 
     def save_checkpoint(self, epoch: int) -> None:
         # Automatically save models weights
-        is_last = (epoch + 1) == self.config["TRAIN"]["HYP"]["EPOCHS"]
-
         g_state_dict = {
             "epoch": epoch + 1,
             "state_dict": self.g_model.state_dict(),
@@ -259,16 +257,16 @@ class Trainer:
             "scheduler": None
         }
 
-        if self.config["TRAIN"]["SAVE_EVERY_EPOCH"] and not is_last:
-            g_weights_path = os.path.join(self.save_weights_dir, f"g_epoch_{epoch}.pth.tar")
-            d_weights_path = os.path.join(self.save_weights_dir, f"d_epoch_{epoch}.pth.tar")
+        if (self.config["TRAIN"]["SAVE_EVERY_EPOCH"] + 1) % (epoch + 1) == 0:
+            g_weights_path = os.path.join(self.save_weights_dir, f"g_epoch_{epoch:04d}.pth.tar")
+            d_weights_path = os.path.join(self.save_weights_dir, f"d_epoch_{epoch:04d}.pth.tar")
             torch.save(g_state_dict, g_weights_path)
             torch.save(d_state_dict, d_weights_path)
-        else:
-            g_weights_path = os.path.join(self.save_weights_dir, f"g_last.pth.tar")
-            d_weights_path = os.path.join(self.save_weights_dir, f"d_last.pth.tar")
-            torch.save(g_state_dict, g_weights_path)
-            torch.save(d_state_dict, d_weights_path)
+
+        g_weights_path = os.path.join(self.save_weights_dir, f"g_last.pth.tar")
+        d_weights_path = os.path.join(self.save_weights_dir, f"d_last.pth.tar")
+        torch.save(g_state_dict, g_weights_path)
+        torch.save(d_state_dict, d_weights_path)
 
     def train_on_epoch(self, epoch: int):
         # The information printed by the progress bar

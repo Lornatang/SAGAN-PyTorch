@@ -49,7 +49,7 @@ TRAIN:
 
   PRINT_FREQ: 100
   VISUAL_FREQ: 1000
-  SAVE_EVERY_EPOCH: True
+  SAVE_EVERY_EPOCH: 5
 
 TEST:
   # Model file address, used for pre-training and recovery training
