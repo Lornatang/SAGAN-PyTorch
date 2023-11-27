@@ -116,13 +116,7 @@ class CUDAPrefetcher:
             self.batch_data = None
             return None
 
-        with torch.cuda.stream(self.stream):
-            for k, v in self.batch_data.items():
-                if torch.is_tensor(v):
-                    self.batch_data[k] = self.batch_data[k].to(self.device, non_blocking=True)
-
     def next(self):
-        torch.cuda.current_stream().wait_stream(self.stream)
         batch_data = self.batch_data
         self.preload()
         return batch_data

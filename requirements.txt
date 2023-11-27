@@ -1,0 +1,9 @@
+numpy
+torch
+PyYAML
+setuptools
+Pillow
+torchvision
+scipy
+tqdm
+thop

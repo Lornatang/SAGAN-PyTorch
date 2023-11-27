@@ -29,7 +29,7 @@ from torchvision.datasets import ImageFolder
 from torchvision.utils import save_image
 
 from sagan_pytorch.data import CPUPrefetcher, CUDAPrefetcher
-from sagan_pytorch.models import generator, discriminator, load_resume_state_dict
+from sagan_pytorch.models import generator, discriminator, load_state_dict
 from sagan_pytorch.utils import AverageMeter, ProgressMeter
 
 
@@ -63,7 +63,7 @@ class Trainer:
         self.fixed_noise = torch.randn(self.fixed_size * self.fixed_repeat, self.config["MODEL"]["G"]["NOISE_DIM"], device=self.device)
         self.fixed_class = torch.arange(self.fixed_size, device=self.device).long().repeat(self.fixed_repeat)
 
-        self.load_checkpoint()
+        self.best_fid = 0.0
 
     def build_model(self) -> tuple:
         """Build the generator, discriminator and exponential average generator models
@@ -101,12 +101,12 @@ class Trainer:
         self.g_optim = optim.Adam(
             self.g_model.parameters(),
             self.config["TRAIN"]["OPTIM"]["G"]["LR"],
-            (self.config["TRAIN"]["OPTIM"]["G"]["BETA1"], self.config["TRAIN"]["OPTIM"]["G"]["BETA2"]),
+            eval(self.config["TRAIN"]["OPTIM"]["G"]["BETAS"]),
         )
         self.d_optim = optim.Adam(
             self.d_model.parameters(),
             self.config["TRAIN"]["OPTIM"]["D"]["LR"],
-            (self.config["TRAIN"]["OPTIM"]["D"]["BETA1"], self.config["TRAIN"]["OPTIM"]["D"]["BETA2"]),
+            eval(self.config["TRAIN"]["OPTIM"]["D"]["BETAS"]),
         )
 
         return self.g_optim, self.d_optim
@@ -119,14 +119,16 @@ class Trainer:
         """
 
         transform = transforms.Compose([
-            transforms.Resize(self.config["DATASETS"]["IMG_SIZE"]),
-            transforms.CenterCrop(self.config["DATASETS"]["IMG_SIZE"]),
+            transforms.Resize(self.config["TRAIN"]["DATASET"]["IMG_SIZE"]),
+            transforms.CenterCrop(self.config["TRAIN"]["DATASET"]["IMG_SIZE"]),
             transforms.RandomHorizontalFlip(0.5),
             transforms.ToTensor(),
-            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+            transforms.Normalize(
+                eval(self.config["TRAIN"]["DATASET"]["NORMALIZE"]["MEAN"]),
+                eval(self.config["TRAIN"]["DATASET"]["NORMALIZE"]["STD"])),
         ])
         # Load the train dataset
-        datasets = ImageFolder(self.config["DATASETS"]["IMGS_DIR"], transform)
+        datasets = ImageFolder(self.config["TRAIN"]["DATASET"]["ROOT"], transform)
         # generate dataset iterator
         dataloader = torch.utils.data.DataLoader(datasets,
                                                  batch_size=self.config["TRAIN"]["HYP"]["IMGS_PER_BATCH"],
@@ -135,6 +137,11 @@ class Trainer:
                                                  pin_memory=True,
                                                  drop_last=True,
                                                  persistent_workers=True)
+
+        if self.device.type == "cuda":
+            dataloader = CUDAPrefetcher(dataloader, self.device)
+        else:
+            dataloader = CPUPrefetcher(dataloader)
 
         return dataloader
 
@@ -199,82 +206,19 @@ class Trainer:
 
         return d_loss, d_loss_real, d_loss_fake
 
-    def load_checkpoint(self) -> None:
-        """Load the checkpoint"""
-
-        def _load(model: nn.Module, weights_path: str) -> None:
-            if weights_path != "" and os.path.exists(weights_path):
-                print(f"Load checkpoint from '{weights_path}'")
-                checkpoint = torch.load(weights_path, map_location=self.device)
-                if checkpoint["state_dict"] is not None:
-                    state_dict = checkpoint["state_dict"]
-                elif checkpoint["ema_state_dict"] is not None:
-                    state_dict = checkpoint["ema_state_dict"]
-                else:
-                    raise ValueError("The checkpoint does not contain the 'state_dict' or 'ema_state_dict' key")
-                model.load_state_dict(state_dict)
-
-        # Load pretrained model weights
-        _load(self.g_model, self.config["TRAIN"]["CHECKPOINT"]["G"]["PRETRAINED_MODEL_WEIGHTS_PATH"])
-        _load(self.d_model, self.config["TRAIN"]["CHECKPOINT"]["D"]["PRETRAINED_MODEL_WEIGHTS_PATH"])
-
-        # Load resume model weights
-        resume_g_model_weights_path = self.config["TRAIN"]["CHECKPOINT"]["G"]["RESUME_MODEL_WEIGHTS_PATH"]
-        if resume_g_model_weights_path != "":
-            print(f"Load resume checkpoint from '{resume_g_model_weights_path}'")
-            self.start_epoch, self.g_model, self.ema_g_model, self.g_optim, _ = load_resume_state_dict(self.g_model,
-                                                                                                       self.ema_g_model,
-                                                                                                       resume_g_model_weights_path,
-                                                                                                       self.config["MODEL"]["G"]["COMPILED"])
-        resume_d_model_weights_path = self.config["TRAIN"]["CHECKPOINT"]["D"]["RESUME_MODEL_WEIGHTS_PATH"]
-        if resume_d_model_weights_path != "":
-            print(f"Load resume checkpoint from '{resume_d_model_weights_path}'")
-            self.start_epoch, self.d_model, _, self.d_optim, _ = load_resume_state_dict(self.d_model,
-                                                                                        None,
-                                                                                        resume_d_model_weights_path,
-                                                                                        self.config["MODEL"]["D"]["COMPILED"])
-
-    def visual_on_iters(self, iters: int):
+    def visual_on_idx(self, idx: int):
         with torch.no_grad():
             sample_imgs = self.g_model(self.fixed_noise, self.fixed_class)
-            save_sample_path = os.path.join(self.save_visuals_dir, f"iter-{iters:08d}.jpg")
+            save_sample_path = os.path.join(self.save_visuals_dir, f"iter-{idx:08d}.jpg")
             save_image(sample_imgs.cpu().data, save_sample_path, nrow=self.fixed_size, padding=0, normalize=True)
-
-    def save_checkpoint(self, epoch: int) -> None:
-        # Automatically save models weights
-        g_state_dict = {
-            "epoch": epoch + 1,
-            "state_dict": self.g_model.state_dict(),
-            "ema_state_dict": self.ema_g_model.state_dict(),
-            "optimizer": self.g_optim,
-            "scheduler": None,
-        }
-        d_state_dict = {
-            "epoch": epoch + 1,
-            "state_dict": self.d_model.state_dict(),
-            "ema_state_dict": None,
-            "optimizer": self.d_optim,
-            "scheduler": None
-        }
-
-        if self.config["TRAIN"]["SAVE_EVERY_EPOCH"] % (epoch + 1) == 0:
-            g_weights_path = os.path.join(self.save_weights_dir, f"g_epoch_{epoch:04d}.pth.tar")
-            d_weights_path = os.path.join(self.save_weights_dir, f"d_epoch_{epoch:04d}.pth.tar")
-            torch.save(g_state_dict, g_weights_path)
-            torch.save(d_state_dict, d_weights_path)
-
-        g_weights_path = os.path.join(self.save_weights_dir, f"g_last.pth.tar")
-        d_weights_path = os.path.join(self.save_weights_dir, f"d_last.pth.tar")
-        torch.save(g_state_dict, g_weights_path)
-        torch.save(d_state_dict, d_weights_path)
 
     def train_on_epoch(self, epoch: int):
         # The information printed by the progress bar
         global g_loss
         batch_time = AverageMeter("Time", ":6.3f")
         data_time = AverageMeter("Data", ":6.3f")
-        g_losses = AverageMeter("G Loss", ":6.6f")
-        d_losses = AverageMeter("D Loss", ":6.6f")
+        g_losses = AverageMeter("G Loss", ":.4e")
+        d_losses = AverageMeter("D Loss", ":.4e")
         progress = ProgressMeter(self.batches,
                                  [batch_time, data_time, g_losses, d_losses],
                                  prefix=f"Epoch: [{epoch}]")
@@ -284,14 +228,18 @@ class Trainer:
         self.d_model.train()
 
         # Initialize data batches
-        batch_index = 0
-
-        # Record the start time of training a batch
+        batch_idx = 0
+        self.dataloader.reset()
         end = time.time()
-        for i, (imgs, labels) in enumerate(self.dataloader):
+        batch_data = self.dataloader.next()
+
+        while batch_data is not None:
+            total_batch_idx = batch_idx + (self.batches * epoch)
             # Load batches of data
-            imgs = imgs.to(self.device, non_blocking=True)
-            labels = labels.to(self.device, non_blocking=True)
+            imgs, labels = batch_data
+            if self.device.type == "cuda":
+                imgs = imgs.to(self.device, non_blocking=True)
+                labels = labels.to(self.device, non_blocking=True)
 
             # Record the time to load a batch of data
             data_time.update(time.time() - end)
@@ -300,7 +248,7 @@ class Trainer:
             d_loss, d_loss_real, d_loss_fake = self.update_d(imgs, labels)
 
             # start training the generator model
-            if batch_index % self.config["TRAIN"]["N_CRITIC"] == 0:
+            if batch_idx % self.config["TRAIN"]["N_CRITIC"] == 0:
                 g_loss = self.update_g()
 
             # record the loss value
@@ -312,25 +260,87 @@ class Trainer:
             end = time.time()
 
             # Output training log information once
-            iters = batch_index + epoch * self.batches
-            if batch_index % self.config["TRAIN"]["PRINT_FREQ"] == 0:
+            if batch_idx % self.config["TRAIN"]["PRINT_FREQ"] == 0:
                 # write training log
-                self.tblogger.add_scalar("Train/D_Loss", d_loss.item(), iters)
-                self.tblogger.add_scalar("Train/D(GT)_Loss", d_loss_real.item(), iters)
-                self.tblogger.add_scalar("Train/D(G(z))_Loss", d_loss_fake.item(), iters)
-                self.tblogger.add_scalar("Train/G_Loss", g_loss.item(), iters)
-                progress.display(batch_index + 1)
+                self.tblogger.add_scalar("Train/D_Loss", d_loss.item(), total_batch_idx)
+                self.tblogger.add_scalar("Train/D(GT)_Loss", d_loss_real.item(), total_batch_idx)
+                self.tblogger.add_scalar("Train/D(G(z))_Loss", d_loss_fake.item(), total_batch_idx)
+                self.tblogger.add_scalar("Train/G_Loss", g_loss.item(), total_batch_idx)
+                progress.display(batch_idx + 1)
 
             # Save the generated samples
-            if (iters + 1) % self.config["TRAIN"]["VISUAL_FREQ"] == 0:
-                self.visual_on_iters(iters + 1)
+            if (total_batch_idx + 1) % self.config["TRAIN"]["VISUAL_FREQ"] == 0:
+                self.visual_on_idx(total_batch_idx + 1)
+
+            batch_data = self.dataloader.next()
 
             # After training a batch of data, add 1 to the number of data batches to ensure that the terminal prints data normally
-            batch_index += 1
+            batch_idx += 1
 
     def train(self):
+        self.load_checkpoint()
+
         for epoch in range(self.start_epoch, self.config["TRAIN"]["HYP"]["EPOCHS"]):
             self.train_on_epoch(epoch)
 
             # Save weights
             self.save_checkpoint(epoch)
+
+    def load_checkpoint(self) -> None:
+        def _load(weights_path: str, model_type: str) -> None:
+            if os.path.isfile(weights_path):
+                with open(weights_path, "rb") as f:
+                    checkpoint = torch.load(f, map_location=self.device)
+                self.start_epoch = checkpoint.get("epoch", 0)
+                self.best_fid = checkpoint.get("best_fid", 0.0)
+                if model_type == "g":
+                    load_state_dict(self.g_model, checkpoint.get("state_dict", {}))
+                    load_state_dict(self.ema_g_model, checkpoint.get("ema_state_dict", {}))
+                    load_state_dict(self.g_optim, checkpoint.get("optim_state_dict", {}))
+                elif model_type == "d":
+                    load_state_dict(self.d_model, checkpoint.get("state_dict", {}))
+                    load_state_dict(self.d_optim, checkpoint.get("optim_state_dict", {}))
+                print(f"Loaded checkpoint '{weights_path}'")
+            else:
+                raise FileNotFoundError(f"No checkpoint found at '{weights_path}'")
+
+        pretrained_g_weights = self.config["TRAIN"]["CHECKPOINT"]["G"]["PRETRAINED_WEIGHTS"]
+        pretrained_d_weights = self.config["TRAIN"]["CHECKPOINT"]["D"]["PRETRAINED_WEIGHTS"]
+        resume_g_weights = self.config["TRAIN"]["CHECKPOINT"]["G"]["RESUME_WEIGHTS"]
+        resume_d_weights = self.config["TRAIN"]["CHECKPOINT"]["D"]["RESUME_WEIGHTS"]
+        if pretrained_g_weights:
+            _load(pretrained_g_weights, "g")
+        elif pretrained_d_weights:
+            _load(pretrained_d_weights, "d")
+        elif resume_g_weights:
+            _load(resume_g_weights, "g")
+        elif resume_d_weights:
+            _load(resume_d_weights, "d")
+        else:
+            print("No checkpoint or pretrained weights found, train from scratch")
+
+    def save_checkpoint(self, epoch: int) -> None:
+        # Automatically save models weights
+        g_state_dict = {
+            "epoch": epoch + 1,
+            "state_dict": self.g_model.state_dict(),
+            "ema_state_dict": self.ema_g_model.state_dict(),
+            "optim_state_dict": self.g_optim.state_dict(),
+        }
+        d_state_dict = {
+            "epoch": epoch + 1,
+            "state_dict": self.d_model.state_dict(),
+            "ema_state_dict": None,
+            "optim_state_dict": self.d_optim.state_dict(),
+        }
+
+        if (epoch + 1) % self.config["TRAIN"]["SAVE_EVERY_EPOCH"] == 0:
+            g_weights_path = os.path.join(self.save_weights_dir, f"g_epoch_{epoch + 1:06d}.pth.tar")
+            d_weights_path = os.path.join(self.save_weights_dir, f"d_epoch_{epoch + 1:06d}.pth.tar")
+            torch.save(g_state_dict, g_weights_path)
+            torch.save(d_state_dict, d_weights_path)
+
+        g_weights_path = os.path.join(self.save_weights_dir, f"g_last.pth.tar")
+        d_weights_path = os.path.join(self.save_weights_dir, f"d_last.pth.tar")
+        torch.save(g_state_dict, g_weights_path)
+        torch.save(d_state_dict, d_weights_path)

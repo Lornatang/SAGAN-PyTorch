@@ -18,6 +18,7 @@ All training scripts are scheduled by this script
 import argparse
 import os
 import random
+import time
 
 import numpy as np
 import torch
@@ -55,9 +56,10 @@ def init(config) -> tuple:
     device = torch.device("cuda", config["DEVICE_ID"])
 
     # Create a folder to save the model and log
-    save_weights_dir = os.path.join("results", "train", config["EXP_NAME"])
-    save_visuals_dir = os.path.join("results", "train", config["EXP_NAME"], "visuals")
-    save_tblogger_dir = os.path.join("tb_logger", config["EXP_NAME"])
+    strtime = time.strftime("%Y%m%d_%H%M%S", time.localtime())
+    save_weights_dir = os.path.join("results", "train", config["EXP_NAME"] + "-" + strtime)
+    save_visuals_dir = os.path.join("results", "train", config["EXP_NAME"] + "-" + strtime, "visuals")
+    save_tblogger_dir = os.path.join("tb_logger", config["EXP_NAME"] + "-" + strtime)
     os.makedirs(save_weights_dir, exist_ok=True)
     os.makedirs(save_visuals_dir, exist_ok=True)
     os.makedirs(save_tblogger_dir, exist_ok=True)

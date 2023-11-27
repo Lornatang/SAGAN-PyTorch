@@ -1,5 +1,5 @@
 # experiment name
-EXP_NAME: imagenet_128x128
+EXP_NAME: imagenet_64x64
 # random number seed
 SEED: 42
 # run device model
@@ -15,19 +15,23 @@ MODEL:
     NUM_CLASSES: 1000
     COMPILED: False
 
-DATASETS:
-  IMGS_DIR: "./data/imagenet"
-  IMG_SIZE: 128
-
 TRAIN:
+  DATASET:
+    ROOT: "./data/imagenet"
+    IMG_SIZE: 64
+
+    NORMALIZE:
+      MEAN: (0.5, 0.5, 0.5)
+      STD: (0.5, 0.5, 0.5)
+
   # Model file address, used for pre-training and recovery training
   CHECKPOINT:
     G:
-      PRETRAINED_MODEL_WEIGHTS_PATH: ""
-      RESUME_MODEL_WEIGHTS_PATH: ""
+      PRETRAINED_WEIGHTS: ""
+      RESUME_WEIGHTS: ""
     D:
-      PRETRAINED_MODEL_WEIGHTS_PATH: ""
-      RESUME_MODEL_WEIGHTS_PATH: ""
+      PRETRAINED_WEIGHTS: ""
+      RESUME_WEIGHTS: ""
 
   # training hyperparameters
   HYP:
@@ -38,12 +42,10 @@ TRAIN:
   OPTIM:
     G:
       LR: 0.0001
-      BETA1: 0.0
-      BETA2: 0.9
+      BETAS: (0.0, 0.9)
     D:
       LR: 0.0004
-      BETA1: 0.0
-      BETA2: 0.9
+      BETAS: (0.0, 0.9)
 
   N_CRITIC: 5  # Update G every n_critic iterations
 
@@ -51,10 +53,17 @@ TRAIN:
   VISUAL_FREQ: 1000
   SAVE_EVERY_EPOCH: 5
 
-TEST:
+VAL:
+  DATASET:
+    ROOT: "./data/imagenet"
+    IMG_SIZE: 64
+
+    NORMALIZE:
+      MEAN: (0.5, 0.5, 0.5)
+      STD: (0.5, 0.5, 0.5)
+
   # Model file address, used for pre-training and recovery training
-  CHECKPOINT:
-    MODEL_WEIGHTS_PATH: "./results/pretrained_models/g-imagenet_128x128.pth.tar"
+  WEIGHTS: "./results/pretrained_models/g-imagenet_128x128.pth.tar"
 
   HYP:
     IMGS_PER_BATCH: 1
