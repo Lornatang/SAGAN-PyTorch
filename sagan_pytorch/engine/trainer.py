@@ -270,7 +270,7 @@ class Trainer:
 
             # Save the generated samples
             if (total_batch_idx + 1) % self.config["TRAIN"]["VISUAL_FREQ"] == 0:
-                self.visual_on_idx(total_batch_idx)
+                self.visual_on_idx(total_batch_idx + 1)
 
             batch_data = self.dataloader.next()
 
