@@ -1,5 +1,5 @@
 # experiment name
-EXP_NAME: imagenet_64x64
+EXP_NAME: imagenet_128x128
 # random number seed
 SEED: 42
 # run device model
@@ -18,7 +18,7 @@ MODEL:
 TRAIN:
   DATASET:
     ROOT: "./data/imagenet"
-    IMG_SIZE: 64
+    IMG_SIZE: 128
 
     NORMALIZE:
       MEAN: (0.5, 0.5, 0.5)
@@ -27,11 +27,9 @@ TRAIN:
   # Model file address, used for pre-training and recovery training
   CHECKPOINT:
     G:
-      PRETRAINED_WEIGHTS: ""
-      RESUME_WEIGHTS: ""
+      WEIGHTS: ""
     D:
-      PRETRAINED_WEIGHTS: ""
-      RESUME_WEIGHTS: ""
+      WEIGHTS: ""
 
   # training hyperparameters
   HYP:
@@ -56,14 +54,15 @@ TRAIN:
 VAL:
   DATASET:
     ROOT: "./data/imagenet"
-    IMG_SIZE: 64
+    IMG_SIZE: 128
 
     NORMALIZE:
       MEAN: (0.5, 0.5, 0.5)
       STD: (0.5, 0.5, 0.5)
 
-  # Model file address, used for pre-training and recovery training
-  WEIGHTS: "./results/pretrained_models/g-imagenet_128x128.pth.tar"
+  CHECKPOINT:
+    G:
+      WEIGHTS: "./results/pretrained_models/g-imagenet_128x128.pth.tar"
 
   HYP:
     IMGS_PER_BATCH: 1

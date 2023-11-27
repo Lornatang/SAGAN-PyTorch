@@ -30,7 +30,7 @@ class Discriminator(nn.Module):
                                       nn.ReLU(True),
                                       spectral_init(nn.Conv2d(64, 64, 3, 1, 1)),
                                       nn.AvgPool2d(2))
-        self.pre_skip = spectral_init(nn.Conv2d(in_channels, 64, 1))
+        self.pre_skip = spectral_init(nn.Conv2d(in_channels, 64, 1, 1, 0, bias=False))
 
         self.trunk = nn.Sequential(BasicConvBlock(64, 128, bn=False, upsample=False, downsample=True),
                                    BasicConvBlock(128, 256, bn=False, upsample=False, downsample=False),

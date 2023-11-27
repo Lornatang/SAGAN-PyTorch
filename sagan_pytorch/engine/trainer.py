@@ -248,7 +248,7 @@ class Trainer:
             d_loss, d_loss_real, d_loss_fake = self.update_d(imgs, labels)
 
             # start training the generator model
-            if batch_idx % self.config["TRAIN"]["N_CRITIC"] == 0:
+            if (batch_idx + 1) % self.config["TRAIN"]["N_CRITIC"] == 0 or batch_idx == 0 or (batch_idx + 1) == self.batches:
                 g_loss = self.update_g()
 
             # record the loss value
@@ -270,7 +270,7 @@ class Trainer:
 
             # Save the generated samples
             if (total_batch_idx + 1) % self.config["TRAIN"]["VISUAL_FREQ"] == 0:
-                self.visual_on_idx(total_batch_idx + 1)
+                self.visual_on_idx(total_batch_idx)
 
             batch_data = self.dataloader.next()
 
@@ -304,31 +304,26 @@ class Trainer:
             else:
                 raise FileNotFoundError(f"No checkpoint found at '{weights_path}'")
 
-        pretrained_g_weights = self.config["TRAIN"]["CHECKPOINT"]["G"]["PRETRAINED_WEIGHTS"]
-        pretrained_d_weights = self.config["TRAIN"]["CHECKPOINT"]["D"]["PRETRAINED_WEIGHTS"]
-        resume_g_weights = self.config["TRAIN"]["CHECKPOINT"]["G"]["RESUME_WEIGHTS"]
-        resume_d_weights = self.config["TRAIN"]["CHECKPOINT"]["D"]["RESUME_WEIGHTS"]
-        if pretrained_g_weights:
-            _load(pretrained_g_weights, "g")
-        elif pretrained_d_weights:
-            _load(pretrained_d_weights, "d")
-        elif resume_g_weights:
-            _load(resume_g_weights, "g")
-        elif resume_d_weights:
-            _load(resume_d_weights, "d")
-        else:
-            print("No checkpoint or pretrained weights found, train from scratch")
+        g_weights = self.config["TRAIN"]["CHECKPOINT"]["G"]["WEIGHTS"]
+        d_weights = self.config["TRAIN"]["CHECKPOINT"]["D"]["WEIGHTS"]
+
+        if g_weights:
+            _load(g_weights, "g")
+        if d_weights:
+            _load(d_weights, "d")
 
     def save_checkpoint(self, epoch: int) -> None:
         # Automatically save models weights
         g_state_dict = {
             "epoch": epoch + 1,
+            "best_fid": self.best_fid,
             "state_dict": self.g_model.state_dict(),
             "ema_state_dict": self.ema_g_model.state_dict(),
             "optim_state_dict": self.g_optim.state_dict(),
         }
         d_state_dict = {
             "epoch": epoch + 1,
+            "best_fid": self.best_fid,
             "state_dict": self.d_model.state_dict(),
             "ema_state_dict": None,
             "optim_state_dict": self.d_optim.state_dict(),
